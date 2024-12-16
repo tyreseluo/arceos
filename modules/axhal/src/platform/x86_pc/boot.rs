@@ -8,10 +8,10 @@ use axconfig::{PHYS_VIRT_OFFSET, TASK_STACK_SIZE};
 /// Flags set in the ’flags’ member of the multiboot header.
 ///
 /// (bits 1, 16: memory information, address fields in header)
-const MULTIBOOT_HEADER_FLAGS: usize = 0x0001_0002;
+const MULTIBOOT_HEADER_FLAGS: usize = 0x0001_0002; // 标志位
 
 /// The magic field should contain this.
-const MULTIBOOT_HEADER_MAGIC: usize = 0x1BADB002;
+const MULTIBOOT_HEADER_MAGIC: usize = 0x1BADB002; // Multiboot 魔数
 
 /// This should be in EAX.
 pub(super) const MULTIBOOT_BOOTLOADER_MAGIC: usize = 0x2BADB002;
@@ -41,7 +41,7 @@ global_asm!(
     entry = sym super::rust_entry,
     entry_secondary = sym super::rust_entry_secondary,
 
-    offset = const PHYS_VIRT_OFFSET,
+    offset = const PHYS_VIRT_OFFSET, // 0
     boot_stack_size = const TASK_STACK_SIZE,
     boot_stack = sym BOOT_STACK,
 

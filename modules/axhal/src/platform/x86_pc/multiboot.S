@@ -5,9 +5,9 @@
 .code32
 .global _start
 _start:
-    mov     edi, eax        # arg1: magic: 0x2BADB002
-    mov     esi, ebx        # arg2: multiboot info
-    jmp     bsp_entry32
+    mov     edi, eax        # arg1: magic: 0x2BADB002 传递 magic number 到 edi
+    mov     esi, ebx        # arg2: multiboot info 传递 multiboot 信息到 esi
+    jmp     bsp_entry32     # 跳转到 32 位入口
 
 .balign 4
 .type multiboot_header, STT_OBJECT
@@ -21,15 +21,25 @@ multiboot_header:
     .int    _ebss - {offset}                    # bss_end_addr
     .int    _start - {offset}                   # entry_addr
 
+@ multiboot_header:
+@     .int {mb_hdr_magic}                      # Multiboot 魔数
+@     .int {mb_hdr_flags}                      # 标志位
+@     .int -({mb_hdr_magic} + {mb_hdr_flags})  # 校验和
+@     .int multiboot_header - {offset}         # 头部地址
+@     .int _skernel - {offset}                 # 内核加载地址
+@     .int _edata - {offset}                   # 数据段结束地址
+@     .int _ebss - {offset}                    # BSS 段结束地址
+@     .int _start - {offset}                   # 内核入口地址
+
 # Common code in 32-bit, prepare states to enter 64-bit.
 .macro ENTRY32_COMMON
     # set data segment selectors
-    mov     ax, 0x18
-    mov     ss, ax
-    mov     ds, ax
-    mov     es, ax
-    mov     fs, ax
-    mov     gs, ax
+    mov     ax, 0x18  # 段选择子，指向 GDT 的数据段 0x18 是 GDT 中数据段的偏移。这是必须的，因为所有的内存访问都需要依赖段寄存器。
+    mov     ss, ax    # 设置栈段
+    mov     ds, ax    # 设置数据段
+    mov     es, ax    # 设置附加数据段
+    mov     fs, ax    # 设置 fs 寄存器
+    mov     gs, ax    # 设置 gs 寄存器
 
     # set PAE, PGE bit in CR4
     mov     eax, {cr4}
@@ -53,19 +63,19 @@ multiboot_header:
 # Common code in 64-bit
 .macro ENTRY64_COMMON
     # clear segment selectors
-    xor     ax, ax
-    mov     ss, ax
-    mov     ds, ax
-    mov     es, ax
-    mov     fs, ax
-    mov     gs, ax
+    xor     ax, ax  # 将 ax 清零
+    mov     ss, ax  # 设置栈段为空
+    mov     ds, ax  # 设置数据段为空
+    mov     es, ax  # 清空附加段
+    mov     fs, ax  # 清空 fs 寄存器
+    mov     gs, ax  # 清空 gs 寄存器
 .endm
 
 .code32
 bsp_entry32:
-    lgdt    [.Ltmp_gdt_desc - {offset}]             # load the temporary GDT
+    lgdt    [.Ltmp_gdt_desc - {offset}]             # load the temporary GDT lgdt [.Ltmp_gdt_desc - {offset}]  # 加载 GDT 描述符
     ENTRY32_COMMON
-    ljmp    0x10, offset bsp_entry64 - {offset}    # 0x10 is code64 segment
+    ljmp    0x10, offset bsp_entry64 - {offset}    # 0x10 is code64 segment  0x10 是 64 位代码段的选择子。跳转到 bsp_entry64 开始 64 位模式的初始化。
 
 .code32
 .global ap_entry32
@@ -78,12 +88,15 @@ bsp_entry64:
     ENTRY64_COMMON
 
     # set RSP to boot stack
-    movabs  rsp, offset {boot_stack}
-    add     rsp, {boot_stack_size}
+    movabs  rsp, offset {boot_stack}    # 设置栈基址
+    add     rsp, {boot_stack_size}      # 将栈指针设置到栈顶
+
+    # boot_stack 是栈的起始地址。
+    # boot_stack_size
 
     # call rust_entry(magic, mbi)
-    movabs  rax, offset {entry}
-    call    rax
+    movabs  rax, offset {entry}  # Rust 内核的入口地址
+    call    rax                  # 跳转到入口函数
     jmp     .Lhlt
 
 .code64
